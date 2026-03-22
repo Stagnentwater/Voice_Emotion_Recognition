@@ -1,0 +1,54 @@
+Project Plan
+1. Detect emotions based on short voice clip (speech) and then uses a pretraiend AI model to predict the emotion expressed (happy, sad, angry, neutral)
+2. Input: audio of human speech (voice) or recording via live microphone
+3. Output: classification + confidence 
+
+
+
+
+How?
+1. Install streamlit and try with a simple app: pip install streamlit
+2. Audio in, audio out: add a file uploader -> load audio -> play it back in the app (read bytes, show st.audio) - accept (.wav/.mp3/.m4a/.ogg)
+    - Mini-concepts to know: audio basics:  sample rate(16kHz), mono vs stereo, waveform = array of gloats
+    - Most speech models expect mono 16kHz inputs
+    - Success check: you upload a file and can hear it in the app
+3. Visualize the signal
+    - Convert uploaded audio to Numpy array (mono, 16kHz), then draw: Waveform (amplitude vs time) and Mel-spectrogram (time-frequency heatmap)
+    - Know how to convert from original sample rate to 16kHz (with librosa.resample) and mel-spectrogram to compress frequency scale that matches human perception
+    - Success check: You see a waveform plot and a spectrogram for your uploaded file
+4. Run the pretrained model: use a Hugging Face audio-classification pipeline (superb/hubert-large-superb-er) to get emotion predictions
+    - pass {"array": audio_np, "sampling_rate":16000} to the pipeline, and sort results, show top-3 emotions with probabilities and emojis
+    - Know: pre-trained vs trained-from-scratch, and pipelines (convenience wrappers in transformers that handle tokeniztion/feature extraction + model forward pass)
+    - Success check: upload speech and see predicted emotion with %, try two different tones and observe different outputs
+5. Deploy
+
+Core conceptsKeep these in mind as we go:
+1. Signal basics: audio = array of floats; sample rate = samples/second; mono = single channel.
+2. Preprocessing: resample to 16kHz, convert stereo→mono (average channels).
+3. Inference: a pretrained HuBERT/Wav2Vec2 model does feature extraction internally; you supply audio+rate.
+4. Interpretation: model outputs labels + scores; scores ≠ probabilities in a strict sense, but are confidence-like.
+5. Limitations: actors’ datasets ≠ real-world accents/noise; results can be uncertain or biased.
+
+For step 2, how to handle audi in inside the app using the simple & quick way with streamlit-audiorec
+1. packages needed: sreamlit-audiorec, soundfile, numpy
+
+from st_audiorec import st_audiorec
+import streamlit as st
+import io, soundfile as sf
+import numpy as np
+
+st.subheader("🎤 Record your voice")
+wav_audio = st_audiorec()   # UI button appears
+
+if wav_audio is not None:
+    # Playback right away
+    st.audio(wav_audio, format="audio/wav")
+
+    # Convert WAV bytes -> numpy waveform + sample rate
+    data, sr = sf.read(io.BytesIO(wav_audio), dtype="float32", always_2d=False)
+    # If stereo, average to mono now or later:
+    if data.ndim > 1:
+        data = data.mean(axis=1)
+
+    st.success(f"Captured {len(data)/sr:.2f}s at {sr} Hz")
+
